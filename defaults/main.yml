@@ -1,0 +1,7 @@
+---
+dionaea_dest_base_path: /opt/dionaea
+dionaea_repo_dir:
+dionaea_repo_url: https://github.com/DinoTools/dionaea.git 
+dionaea_user: dionaea
+dionaea_version: master
+dionaea_version_file:

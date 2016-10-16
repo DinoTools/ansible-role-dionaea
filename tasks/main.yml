@@ -1,0 +1,94 @@
+---
+- name: Install requirements
+  package:
+    name: "{{ item }}"
+  with_items:
+    # 
+    - git
+    # Build requirements
+    - autoconf
+    - automake
+    - build-essential
+    - check
+    - cython3
+    - libcurl4-openssl-dev
+    - libemu-dev
+    - libev-dev
+    - libglib2.0-dev
+    - libnl-3-dev
+    - libpcap-dev
+    - libssl-dev
+    - libtool
+    - libudns-dev
+    - python3
+    - python3-dev
+    - python3-yaml
+
+- name: Create user
+  user:
+    name: "{{ dionaea_user }}"
+
+- name: Create dir for git repositories
+  file:
+    path: "{{ dionaea_real_repo_dir }}"
+    state: directory
+
+- name: Get installed version
+  shell: "test -f {{ dionaea_real_version_file }} && cat {{ dionaea_real_version_file }} || echo ''"
+  register: dionaea_installed_version_result
+
+- name: Clone or update dionaea repository
+  git:
+    repo: "{{ dionaea_repo_url }}"
+    dest: "{{ dionaea_real_repo_dir }}"
+    version: "{{ dionaea_version }}"
+  register: dionaea_git_result
+
+- block:
+  - name: Clean up git repo
+    command: git clean -dfx
+    args:
+      chdir: "{{ dionaea_real_repo_dir }}"
+      warn: false
+    when: "dionaea_git_result.before is not none"
+
+  - name: Run autoreconf
+    command: autoreconf -vi
+    args:
+      chdir: "{{ dionaea_real_repo_dir }}"
+  
+  - name: Run configure
+    command: "./configure --prefix={{ dionaea_dest_base_path }} --with-python=/usr/bin/python3 --with-cython-dir=/usr/bin --with-ev-include=/usr/include --with-ev-lib=/usr/lib --with-emu-lib=/usr/lib/libemu --with-emu-include=/usr/include --enable-nl --with-nl-include=/usr/include/libnl3 --with-nl-lib=/usr/lib"
+    args:
+      chdir: "{{ dionaea_real_repo_dir }}"
+    
+  - name: "Build dionaea on {{ ansible_processor_cores }} cores"
+    command: "make -j {{ ansible_processor_cores }}"
+    args:
+      chdir: "{{ dionaea_real_repo_dir }}"
+
+  - name: Delete bin and lib destination dirs
+    file:
+      path: "{{ dionaea_dest_base_path }}/{{ item }}"
+      state: absent
+    with_items:
+      - bin
+      - lib
+
+  - name: Install dionaea
+    command: make install
+    args:
+      chdir: "{{ dionaea_real_repo_dir }}"
+
+  when: "dionaea_installed_version_result.stdout != dionaea_git_result.after"
+
+- name: Create dionaea version file
+  copy:
+    content: "{{ dionaea_git_result.after }}"
+    dest: "{{ dionaea_real_version_file }}"
+
+- name: Set permissions
+  file:
+    owner: "{{ dionaea_user }}"
+    path: "{{ dionaea_dest_base_path }}/var"
+    recurse: true

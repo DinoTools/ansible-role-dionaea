@@ -1,0 +1,3 @@
+---
+dionaea_real_repo_dir: "{% if dionaea_repo_dir %}{{ dionaea_repo_dir }}{% else %}{{ dionaea_dest_base_path }}/git{% endif %}"
+dionaea_real_version_file: "{% if dionaea_version_file %}{{ dionaea_version_file }}{% else %}{{ dionaea_dest_base_path }}/installed_version{% endif %}"
